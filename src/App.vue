@@ -1,32 +1,57 @@
 <template>
-  <div id="app">
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
-    </div>
-    <router-view/>
+  <div id="FirstFocusInternational">
+    <display-loading v-if="loading"></display-loading>
+    <component :is="layout"
+               v-else>
+      <snackbar />
+      <router-view></router-view>
+    </component>
   </div>
 </template>
 
-<style lang="scss">
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-}
+<script>
+import { mapState } from 'vuex'
+import firebase from 'firebase'
+import displayLoading from '@/components/displayLoading'
+import snackbar from '@/components/snackbar'
 
-#nav {
-  padding: 30px;
 
-  a {
-    font-weight: bold;
-    color: #2c3e50;
+export default {
+  name: 'App',
 
-    &.router-link-exact-active {
-      color: #42b983;
-    }
+  components: {
+    snackbar,
+    displayLoading
+  },
+
+  computed: {
+    layout () {
+      return this.$route.meta.layout ? this.$route.meta.layout + 'Layout' : 'defaultLayout'
+    },
+
+    ...mapState([
+      'loading'
+    ])
+  },
+
+  mounted () {
+    firebase.auth().onAuthStateChanged(async auth => {
+      this.$store.commit('set_loading', true)
+      if (auth) {
+        const user = await this.$db.read(`users/${auth.uid}`)
+
+        if (user) {
+          if (this.$route.path === '/sign-in' || this.$route.path === '/sign-up') this.$router.push('/dashboard')
+          this.snack('success', `Welcome ${user.name}`)
+        }
+
+      } else {
+        // redirect user to /sign-in
+        if (this.$route.meta.auth) this.$router.push('/sign-in')
+        this.$store.commit('set_user', false)
+      }
+      this.$store.commit('set_loading', false)
+    })
   }
 }
-</style>
+</script>
